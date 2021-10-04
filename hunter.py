@@ -39,30 +39,15 @@ while True:
 
 # getItems
 def main(timeout):
-    while True:
-        # if prodPid == '':
-        if True:
             items = tuenvioApi.getItems(deptUri)
-            if not items: continue
-            itemUri = items[0]['itemUri']
-            if keyWord != '':
-                for p in items:
-                    if keyWord.lower() in p['itemTitle'].lower():
-                        itemUri = p['itemUri']
-                        break
-            while True:
-                tuenvioApi.addToCart(items[0]['itemUri'], itemUri.split('ProdPid=')[-1].split('&')[0])
-        # else:
-            # item = [i for i in items if i['itemUri'].split('ProdPid=')[-1].split('&')[0] == prodPid]
-            # if not item:
-                # tuenvioApi.saveLogs('El producto deseado no está en la lista de disponibles.')
-                # continue
-        
-        else:
-            tuenvioApi.addToCart('Products?depPid=46095', prodPid, timeout)
+            if items:
+                itemUri = items[0]['itemUri']
+                while True:
+                    tuenvioApi.addToCart(items[0]['itemUri'], itemUri.split('ProdPid=')[-1].split('&')[0])
 
 # Thread(target = main, args=[60 if prodPid == '' else 0.5]).start()
-Thread(target = main, args=[60]).start()
 while True:
-    sleep(30)
-    tuenvioApi.getSections()
+    Thread(target = main, args=[120]).start()
+    sleep(1)
+    c += 1
+    if c % 30 == 0: tuenvioApi.getSections()
