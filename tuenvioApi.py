@@ -135,13 +135,13 @@ def getCaptcha():
     global session
     try:
         if stateIn is None and not getLogInStates(): return False
-        print(stateIn['captchaLink'])
+        # print(stateIn['captchaLink'])
         url = 'https://' + baseUrl + '/' + shopList[shopIndexCaptcha] + '/' + stateIn['captchaLink']
         r = session.get(url, headers=headers, timeout=timeoutValue)
     except Exception as ex:
         saveLogs('$$$$$$$$$$$$$$ Exception getCaptcha 1 $$$$$$$$$$$$$')
         saveLogs(str(ex))
-        sleep(2)
+        sleep(0.5)
         return False
     if r.status_code == 200:
         # solvedCaptcha = dbc.getCaptcha(r.content)
@@ -291,7 +291,7 @@ def getItems(deptUri):
             
     soup = BeautifulSoup(response.content, 'html.parser')
     hProductItems = soup.find(class_ = 'hProductItems')
-    saveContent(str(response.content), 'getItems1') # delete
+    # saveContent(str(response.content), 'getItems1') # delete
     if hProductItems is None:
         saveLogs('--- no hay productos ---')
         return False
@@ -413,13 +413,16 @@ def addToCart(itemUri, itemId, timeoutAddToCart = 90, id = '1'):
 
 def getAddToCartData(itemId = 'ctl00'):
     return {
-        # 'ctl00$ScriptManager1': 'ctl00$ScriptManager1|ctl00$cphPage$productsControl$rptListProducts$' + itemId + '$' + showMode + '$btnCart',
+        'ctl00$ScriptManager1': 'ctl00$ScriptManager1|ctl00$cphPage$productsControl$rptListProducts$' + itemId + '$' + showMode + '$btnCart',
         # 'ctl00$ScriptManager1': 'ctl00$cphPage$productsControl$UpdatePanel1|ctl00$cphPage$productsControl$rptListProducts$' + itemId + '$' + showMode + '$btnCart',
         '__EVENTTARGET': 'ctl00$cphPage$productsControl$rptListProducts$' + itemId + '$' + showMode + '$btnCart',
         '__VIEWSTATE': deptStates['viewState'],
         # '__VIEWSTATE': '',
         # '__EVENTVALIDATION': deptStates['eventValidation'],
+        'ctl00$txtSearch': '',
         'ctl00$cphPage$productsControl$TopTools$cbxPageSize': '-1',
+        'ctl00$txtSearch=&ctl00$cphPage$productsControl$TopTools$cbxSortType': '',
+        'ctl00$cphPage$productsControl$rptListProducts$' + itemId + '$' + showMode + '$listTemplate$txbCaptcha': '',
         # 'ctl00$cphPage$productsControl$TopTools$cbxViewType': 'GridMode',
         'ctl00$cphPage$productsControl$rptListProducts$' + itemId + '$' + showMode + '$txtCount': '1',
         '__ASYNCPOST': 'true',

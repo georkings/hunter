@@ -20,6 +20,8 @@ if os.path.isdir('users') and os.path.isfile('users/' + tuenvioApi.username):
     file.close()
 else: password = "Lionel*2017"
 
+tuenvioApi.saveLogs('*** Welcome! ***')
+
 # getCaptcha
 while True:
     while True:
