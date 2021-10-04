@@ -43,7 +43,14 @@ def saveContent(content, tail):
     file = codecs.open('logs/' + username + '/content' + datetime.now().strftime('_%Y%m%d_%H%M%S_') + tail + '.html', 'w', encoding='utf-8', errors='ignore')
     file.write(codecs.escape_decode(bytes(content, "utf-8"))[0].decode("utf-8"))
     file.close()
-    
+
+def isItRedirect(status_code):
+    return status_code == 301 or \
+      status_code == 302 or \
+      status_code == 303 or \
+      status_code == 307 or \
+      status_code == 308
+
 def isAntiScraping(body):
     return len(body) < 10000 and 'slowAES.decrypt' in body
 
@@ -132,7 +139,7 @@ def getCaptcha():
         url = 'https://' + baseUrl + '/' + shopList[shopIndexCaptcha] + '/' + stateIn['captchaLink']
         r = session.get(url, headers=headers, timeout=timeoutValue)
     except Exception as ex:
-        saveLogs('$$$$$$$$$$$$$$ Exception $$$$$$$$$$$$$')
+        saveLogs('$$$$$$$$$$$$$$ Exception getCaptcha 1 $$$$$$$$$$$$$')
         saveLogs(str(ex))
         sleep(2)
         return False
@@ -146,7 +153,7 @@ def getCaptcha():
                 response = solver.normal("captcha_" + username + ".jpg")
                 break
             except Exception as ex:
-                saveLogs('$$$$$$$$$$$$$$ Exception $$$$$$$$$$$$$')
+                saveLogs('$$$$$$$$$$$$$$ Exception getCaptcha 2 $$$$$$$$$$$$$')
                 saveLogs(str(ex))
                 sleep(2)
         saveLogs('Captcha: ' + response['code'])
@@ -175,7 +182,7 @@ def logIn(password, captcha):
             saveContent(str(response.content), 'logIn')
             if response.status_code == 200: break
         except Exception as ex:
-            saveLogs('$$$$$$$$$$$$$$ Exception $$$$$$$$$$$$$')
+            saveLogs('$$$$$$$$$$$$$$ Exception logIn $$$$$$$$$$$$$')
             saveLogs(str(ex))
         saveLogs('Error en la autenticación.')
         sleep(1)
@@ -224,13 +231,14 @@ def getSections(toExit = False):
     try:
         response = getAntiScraping(url)
     except Exception as ex:
-        saveLogs('$$$$$$$$$$$$$$ Exception getSections 1 $$$$$$$$$$$$$')
+        saveLogs('$$$$$$$$$$$$$$ Exception getSections $$$$$$$$$$$$$')
         saveLogs(str(ex))
         sleep(1)
         return False
     saveLogs('getSections STATUS: ' + str(response.status_code))
     if response.status_code != 200:
         if (len(response.content) > fatResponse): saveLogs('Alto Consumo de Megas!!!')
+        if isItRedirect(response.status_code): print(response.headers['location'])
         return False
     if response.url != url:
         saveLogs(response.url)

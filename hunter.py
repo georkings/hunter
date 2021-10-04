@@ -46,8 +46,10 @@ def main(timeout):
                     tuenvioApi.addToCart(items[0]['itemUri'], itemUri.split('ProdPid=')[-1].split('&')[0])
 
 # Thread(target = main, args=[60 if prodPid == '' else 0.5]).start()
+c = 0
 while True:
     Thread(target = main, args=[120]).start()
     sleep(1)
     c += 1
-    if c % 30 == 0: tuenvioApi.getSections()
+    # if c % 30 == 0: tuenvioApi.getSections()
+    if c % 30 == 0: Thread(target = tuenvioApi.getSections).start()
