@@ -306,22 +306,27 @@ def getItems():
             return False
         soupContent = response.content
         getCart(soupContent)
-        # saveContent(str(response.content), 'getItems') # delete
 
-    deptStates = {
-        'viewState': getValue(str(soupContent), '__VIEWSTATE', False),
-        'eventValidation': getValue(str(soupContent), '__EVENTVALIDATION', False),
-    }
-            
     soup = BeautifulSoup(soupContent, 'html.parser')
     hProductItems = soup.find(class_ = 'hProductItems')
     if hProductItems is None:
         saveLogs('--- no hay productos ---')
         return False
-    itemTags = hProductItems.find_all('li', recursive=False)
+
+    deptStates = {
+        'viewState': getValue(str(soupContent), '__VIEWSTATE', False),
+        'eventValidation': getValue(str(soupContent), '__EVENTVALIDATION', False),
+    }
+
+    if not os.path.isfile('getItems.html'): saveContent(str(soupContent), 'getItems')
+    
+    itemTags = hProductItems.find_all(class_ = 'product-details')
+    if len(itemTags) > 0: return getItemsData_new(itemTags)
+    return getItemsData_old(hProductItems.find_all('li', recursive=False))
+
+def getItemsData_old(itemTags):
     saveLogs('Total de productos: ' + str(len(itemTags)))
     productList = []
-    if not os.path.isfile('getItems.html'): saveContent(str(soupContent), 'getItems') # delete
     for el in itemTags:
         item = {}
         thumbSetting = el.find(class_ = 'thumbSetting')
@@ -339,6 +344,17 @@ def getItems():
         itemPriceText = thumbPrice.find('span').get_text().strip()
         item['itemId'] = el.find(class_ = 'product-inputs').find('a').get('id').split('rptListProducts_')[-1].split('_' + showMode)[0]
         saveLogs('- ' + item['itemTitle'] + ' (' + itemPriceText + ')')
+        productList.append(item)
+    return productList
+
+def getItemsData_new(itemTags):
+    saveLogs('Total de productos: ' + str(len(itemTags)))
+    productList = []
+    for el in itemTags:
+        item = {}
+        item['itemTitle'] = el.find(class_ = 'product-title').get_text().strip()
+        item['itemPrice'] = el.find(class_ = 'product-price').get_text().strip()
+        saveLogs('- ' + item['itemTitle'] + ' (' + item['itemPrice'] + ')')
         productList.append(item)
     return productList
 
