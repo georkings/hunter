@@ -111,7 +111,7 @@ def getAntiScraping(url):
 
     return response
 
-def postAntiScraping(url, data):
+def postAntiScraping(url, data, timeout=timeoutValue):
     global session
     for i in range(6):
         saveLogs('postAntiScraping URL: ' + url)
@@ -121,7 +121,7 @@ def postAntiScraping(url, data):
             
         while True:
             try:
-                response = session.post(url, data=data, headers=headers, timeout=timeoutValue, allow_redirects=False)
+                response = session.post(url, data=data, headers=headers, timeout=timeout, allow_redirects=False)
                 break
             except requests.exceptions.SSLError as ex:
                 saveLogs('$$$$$$$$$$$$$$ SSLError postAntiScraping $$$$$$$$$$$$$')
@@ -367,7 +367,7 @@ def addToCart():
             postData = getAddToCartData()
             saveLogs(re.sub("__VIEWSTATE': '[^']*", "__VIEWSTATE': '" + deptStates['viewState'][-10:], str(postData).replace(', ', '\n')))
             saveLogs(url)
-            response = postAntiScraping(url, data=postData)
+            response = postAntiScraping(url, data=postData, timeout=1)
         else:
             saveLogs('GET method')
             url = 'https://' + baseUrl + '/' + shopList[shopIndex] + '/ShoppingCart.aspx?Department=' + depPidMap.get(shopList[shopIndex], '46095') + '&addItem=' + itemId
