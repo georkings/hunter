@@ -272,7 +272,7 @@ def helper():
     if deptStates is None:
         items = getItems()
         if items and len(items) > 0:
-            for i in range(5): Thread(target = addToCart).start()
+            for i in range(10): Thread(target = addToCart).start()
     elif c < 150 || getItemsContent !is None:
         addToCart()
         c += 1
