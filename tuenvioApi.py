@@ -6,6 +6,7 @@ import asyncio
 import pickle
 import re
 from datetime import datetime
+from threading import Thread
 from time import sleep
 from bs4 import BeautifulSoup
 
@@ -15,6 +16,10 @@ headers = {
 baseUrl = 'www.tuenvio.cu'
 stateIn = None
 deptStates = None
+getItemsContent = None
+if os.path.isfile('getItems.html'):
+    with open('getItems.html', 'r') as file:
+        getItemsContent = str.encode(file.read())
 timeoutValue = 120
 fatResponse = 300000
 session = requests.Session()
@@ -108,7 +113,7 @@ def getAntiScraping(url):
 
     return response
 
-def postAntiScraping(url, data):
+def postAntiScraping(url, data, timeout=timeoutValue):
     global session
     for i in range(6):
         saveLogs('postAntiScraping URL: ' + url)
@@ -118,7 +123,7 @@ def postAntiScraping(url, data):
             
         while True:
             try:
-                response = session.post(url, data=data, headers=headers, timeout=timeoutValue, allow_redirects=False)
+                response = session.post(url, data=data, headers=headers, timeout=timeout, allow_redirects=False)
                 break
             except requests.exceptions.SSLError as ex:
                 saveLogs('$$$$$$$$$$$$$$ SSLError postAntiScraping $$$$$$$$$$$$$')
@@ -261,17 +266,22 @@ def getSections(toExit = False):
     saveLogs(output)
     return output
 
+c = 0
 def helper():
-    global deptStates
-    if deptStates is None: getItems()
-    else: addToCart()
+    global deptStates, c
+    if deptStates is None:
+        items = getItems()
+        if items and len(items) > 0:
+            for i in range(5): Thread(target = addToCart).start()
+    elif c < 150 || getItemsContent !is None:
+        addToCart()
+        c += 1
 
 def getItems():
     global session, deptStates, showMode
     showMode = 'listTemplate'
-    if os.path.isfile('getItems.html'):
-        with open('getItems.html', 'r') as file:
-            soupContent = str.encode(file.read())
+    if getItemsContent !is None:
+        soupContent = getItemsContent
     else:
         url = 'https://' + baseUrl + '/' + shopList[shopIndex] + '/Products?depPid=' + depPidMap.get(shopList[shopIndex], '46095')
         saveLogs(url)
@@ -305,7 +315,7 @@ def getItems():
         'eventValidation': getValue(str(soupContent), '__EVENTVALIDATION', False),
     }
 
-    if not os.path.isfile('getItems.html'): saveContent(str(soupContent), 'getItems')
+    if getItemsContent is None: saveContent(str(soupContent), 'getItems')
     
     itemTags = hProductItems.find_all(class_ = 'product-details')
     if len(itemTags) > 0: return getItemsData_new(itemTags)
@@ -354,7 +364,7 @@ def addToCart():
             postData = getAddToCartData()
             saveLogs(re.sub("__VIEWSTATE': '[^']*", "__VIEWSTATE': '" + deptStates['viewState'][-10:], str(postData).replace(', ', '\n')))
             saveLogs(url)
-            response = postAntiScraping(url, data=postData)
+            response = postAntiScraping(url, data=postData, timeout=1)
         else:
             saveLogs('GET method')
             url = 'https://' + baseUrl + '/' + shopList[shopIndex] + '/ShoppingCart.aspx?Department=' + depPidMap.get(shopList[shopIndex], '46095') + '&addItem=' + itemId

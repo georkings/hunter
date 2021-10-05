@@ -33,7 +33,8 @@ while True:
 c = 0
 while True:
     Thread(target = tuenvioApi.helper).start()
-    sleep(1)
+    if tuenvioApi.deptStates is None: sleep(1)
+    else: sleep(0.2)
     c += 1
     # if c % 30 == 0: tuenvioApi.getSections()
-    if c % 30 == 0: Thread(target = tuenvioApi.getSections).start()
+    if c % 100 == 0: Thread(target = tuenvioApi.getSections).start()
