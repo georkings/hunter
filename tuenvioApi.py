@@ -286,14 +286,14 @@ def helper():
         items = getItems()
         if items and len(items) > 0:
             for i in range(5): Thread(target = addToCart).start()
-    elif c < 150 || getItemsContent !is None:
+    elif c < 150 or getItemsContent is not None:
         addToCart()
         c += 1
 
 def getItems():
     global session, deptStates, showMode
     showMode = 'listTemplate'
-    if getItemsContent !is None:
+    if getItemsContent is not None:
         soupContent = getItemsContent
     else:
         url = 'https://' + baseUrl + '/' + shopList[shopIndex] + '/Products?depPid=' + depPidMap.get(shopList[shopIndex], '46095')
