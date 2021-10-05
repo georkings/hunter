@@ -3,6 +3,8 @@ import os
 import codecs
 import sys
 import asyncio
+import pickle
+import re
 from datetime import datetime
 from time import sleep
 from bs4 import BeautifulSoup
@@ -15,12 +17,19 @@ headers = {
 solver = TwoCaptcha('6176e0a620e1900dbc847591d9e79fd2')
 baseUrl = 'www.tuenvio.cu'
 stateIn = None
+deptStates = None
 timeoutValue = 120
 fatResponse = 300000
 session = requests.Session()
 shopIndex, shopIndexCaptcha = None, None
 shopList = ['pinar', 'artemisa', 'lahabana', 'carlos3',  'tvpedregal', 'caribehabana', 'almacencaribe', 'mayabeque-tv', 'matanzas', 'cienfuegos', 'villaclara',\
 'sancti', 'ciego', 'camaguey', 'tunas', 'holguin', 'granma', 'santiago', 'caribesantiago', 'guantanamo', 'isla']
+depPidMap = {
+    'tvpedregal': '55',
+    'caribehabana': '46087',
+    'caribesantiago': '46087',
+    'almacencaribe': '46087'
+}
 
 baseData = {
     '__EVENTARGUMENT': '',
@@ -93,7 +102,7 @@ def getAntiScraping(url):
         # saveLogs('response.history: ' + str(response.history))
         # saveLogs('response.url: ' + response.url)
         # saveLogs('STATUS: ' + str(response.status_code))
-        if response.status_code == 301: saveLogs('location: ' + response.headers['location'])
+        if isItRedirect(response.status_code): saveLogs('location: ' + response.headers['location'])
         
         if not (response.status_code == 200 and isAntiScraping(str(response.content))):
             return response
@@ -121,8 +130,7 @@ def postAntiScraping(url, data):
         # saveLogs('STATUS: ' + str(response.status_code))
         # saveLogs('response.history: ' + str(response.history))
         # saveLogs('response.url: ' + response.url)
-        if response.status_code == 302: saveLogs('location: ' + response.headers['location'])
-        if response.status_code == 301: saveLogs('location: ' + response.headers['location'])
+        if isItRedirect(response.status_code): saveLogs('location: ' + response.headers['location'])
         
         if not (response.status_code == 200 and isAntiScraping(str(response.content))):
             return response
@@ -132,19 +140,24 @@ def postAntiScraping(url, data):
     return response
 
 def getCaptcha():
-    global session
+    global session, pathCookies
+    pathCookies = 'logs/' + username + '/cookies'
+    if os.path.isfile(pathCookies):
+        with open(pathCookies, 'rb') as f:
+            session.cookies.update(pickle.load(f))
     try:
-        if stateIn is None and not getLogInStates(): return False
+        if stateIn is None:
+            _logInStates = getLogInStates()
+            if _logInStates != True: return _logInStates
         # print(stateIn['captchaLink'])
         url = 'https://' + baseUrl + '/' + shopList[shopIndexCaptcha] + '/' + stateIn['captchaLink']
-        r = session.get(url, headers=headers, timeout=timeoutValue)
+        r = getAntiScraping(url)
     except Exception as ex:
         saveLogs('$$$$$$$$$$$$$$ Exception getCaptcha 1 $$$$$$$$$$$$$')
         saveLogs(str(ex))
         sleep(0.5)
         return False
     if r.status_code == 200:
-        # solvedCaptcha = dbc.getCaptcha(r.content)
         saveLogs('solving catpcha...')
         with open("captcha_" + username + ".jpg", 'wb') as f:
             f.write(r.content)
@@ -193,6 +206,8 @@ def logIn(password, captcha):
     stateIn = None
     if 'Bienvenido ' in str(response.content) and not 'Bienvenido a ' in str(response.content):
         saveLogs('Autenticación exitosa!!!')
+        with open(pathCookies, 'wb') as f:
+            pickle.dump(session.cookies, f)
         return True
     if 'Nombre de Usuario Incorrecto' in str(response.content):
         saveLogs('Usuario y/o contraseña incorrect@.')
@@ -206,19 +221,27 @@ def getLogInStates():
     shopIndexCaptcha = shopIndex
     # print(url)
     while True:
-        url = 'https://' + baseUrl + '/' + shopList[shopIndexCaptcha] + '/' + 'SignIn.aspx?ReturnUrl=%2F' + shopList[shopIndexCaptcha] + '%2FShoppingCart.aspx'
-        response = session.get(url, headers=headers, timeout=timeoutValue)
-        saveLogs('LogInStates STATUS: ' + str(response.status_code))
-        saveLogs('Response URL: ' + str(response.url))
-        # saveContent(str(response.content), 'getLogInStates') # delete
-        if response.status_code == 200 and response.url == url:
-            stateIn = {
-                'viewState': getValue(str(response.content), '__VIEWSTATE', False),
-                'eventValidation': getValue(str(response.content), '__EVENTVALIDATION', False),
-                'captchaLink': getCaptchaLink(str(response.content)),
-            }
-            return True
-        if response.url == 'https://www.tuenvio.cu/caribehabana/StoreClosed.aspx': sleep(2)
+        try:
+            url = 'https://' + baseUrl + '/' + shopList[shopIndexCaptcha] + '/' + 'SignIn.aspx?ReturnUrl=%2F' + shopList[shopIndexCaptcha] + '%2FShoppingCart.aspx'
+            response = getAntiScraping(url)
+            saveLogs('LogInStates STATUS: ' + str(response.status_code))
+            if isItRedirect(response.status_code): saveLogs('location: ' + response.headers['location'])
+            saveLogs('Response URL: ' + str(response.url))
+            # saveContent(str(response.content), 'getLogInStates') # delete
+            if response.status_code == 200 and response.url == url:
+                if getCart(response.content):
+                    saveLogs('User is loggedIn!!!')
+                    return 'loggedIn'
+                stateIn = {
+                    'viewState': getValue(str(response.content), '__VIEWSTATE', False),
+                    'eventValidation': getValue(str(response.content), '__EVENTVALIDATION', False),
+                    'captchaLink': getCaptchaLink(str(response.content)),
+                }
+                return True
+            elif response.url == 'https://www.tuenvio.cu/' + shopList[shopIndexCaptcha] + '/StoreClosed.aspx': sleep(2)
+        except Exception as ex:
+            saveLogs('$$$$$$$$$$$$$$ Exception getLogInStates $$$$$$$$$$$$$')
+            saveLogs(str(ex))
         sleep(1)
         saveLogs('Intentando autenticación en otra tienda...')
         shopIndexCaptcha = (shopIndexCaptcha + 1) % len(shopList)
@@ -238,7 +261,7 @@ def getSections(toExit = False):
     saveLogs('getSections STATUS: ' + str(response.status_code))
     if response.status_code != 200:
         if (len(response.content) > fatResponse): saveLogs('Alto Consumo de Megas!!!')
-        if isItRedirect(response.status_code): print(response.headers['location'])
+        if isItRedirect(response.status_code): saveLogs('location: ' + response.headers['location'])
         return False
     if response.url != url:
         saveLogs(response.url)
@@ -251,54 +274,54 @@ def getSections(toExit = False):
     saveLogs(output)
     return output
 
-def getItems(deptUri):
+def helper():
+    global deptStates
+    if deptStates is None: getItems()
+    else: addToCart()
+
+def getItems():
     global session, deptStates, showMode
-    showMode = 'gridTemplate'
-    url = 'https://' + baseUrl + '/' + shopList[shopIndex] + '/' + deptUri
-    saveLogs(url)
-    try:
-        response = session.get(url, headers=headers, timeout=timeoutValue)
-    except Exception as ex:
-        saveLogs('$$$$$$$$$$$$$$ Exception getItems $$$$$$$$$$$$$')
-        saveLogs(str(ex))
-        sleep(0.5)
-        return False
-    saveLogs('getItems STATUS: ' + str(response.status_code))
-    if response.status_code != 200:
-        if (len(response.content) > fatResponse): saveLogs('Alto Consumo de Megas!!!')
-        return False
-    if response.url != url:
-        saveLogs(response.url)
-        if (len(response.content) > fatResponse): saveLogs('Alto Consumo de Megas!!!')
-        if response.url == 'https://www.tuenvio.cu/mtto_sys_producto_agotado': sleep(5)
-        return False
+    showMode = 'listTemplate'
+    if os.path.isfile('getItems.html'):
+        with open('getItems.html', 'r') as file:
+            soupContent = str.encode(file.read())
+    else:
+        url = 'https://' + baseUrl + '/' + shopList[shopIndex] + '/Products?depPid=' + depPidMap.get(shopList[shopIndex], '46095')
+        saveLogs(url)
+        try:
+            response = getAntiScraping(url)
+        except Exception as ex:
+            saveLogs('$$$$$$$$$$$$$$ Exception getItems $$$$$$$$$$$$$')
+            saveLogs(str(ex))
+            sleep(0.5)
+            return False
+        saveLogs('getItems STATUS: ' + str(response.status_code))
+        if response.status_code != 200:
+            if (len(response.content) > fatResponse): saveLogs('Alto Consumo de Megas!!!')
+            return False
+        if response.url != url:
+            saveLogs(response.url)
+            if (len(response.content) > fatResponse): saveLogs('Alto Consumo de Megas!!!')
+            if response.url == 'https://www.tuenvio.cu/mtto_sys_producto_agotado': sleep(5)
+            return False
+        soupContent = response.content
+        getCart(soupContent)
+        # saveContent(str(response.content), 'getItems') # delete
+
     deptStates = {
-        'viewState': getValue(str(response.content), '__VIEWSTATE', False),
-        'eventValidation': getValue(str(response.content), '__EVENTVALIDATION', False),
+        'viewState': getValue(str(soupContent), '__VIEWSTATE', False),
+        'eventValidation': getValue(str(soupContent), '__EVENTVALIDATION', False),
     }
-    
-    saveContent(str(response.content), 'getItems') # delete
-    
-    # del session.cookies['ASP.NET_SessionId']
-    getCart(response.content)
-    
-    #file = codecs.open('logs/' + username + '/content' + datetime.now().strftime('_%Y%m%d_%H%M%S_') + tail + '.html', 'w', encoding='utf-8', errors='ignore')
-    #file.write(codecs.escape_decode(bytes(content, "utf-8"))[0].decode("utf-8"))
-    #file.close()
-    #file = open('logs/georkings/content_20201119_090127_getItems.html', 'r')
-    #soupContent = str.encode(file.read())
-    #file.close()
             
-    soup = BeautifulSoup(response.content, 'html.parser')
+    soup = BeautifulSoup(soupContent, 'html.parser')
     hProductItems = soup.find(class_ = 'hProductItems')
-    # saveContent(str(response.content), 'getItems1') # delete
     if hProductItems is None:
         saveLogs('--- no hay productos ---')
         return False
     itemTags = hProductItems.find_all('li', recursive=False)
     saveLogs('Total de productos: ' + str(len(itemTags)))
     productList = []
-    # saveContent(str(response.content), 'getItems') # delete
+    if not os.path.isfile('getItems.html'): saveContent(str(soupContent), 'getItems') # delete
     for el in itemTags:
         item = {}
         thumbSetting = el.find(class_ = 'thumbSetting')
@@ -319,97 +342,30 @@ def getItems(deptUri):
         productList.append(item)
     return productList
 
-# def addToCart(itemUri, itemId, timeoutAddToCart):
-    # global session, deptStates
-    # depPid = itemUri.split('depPid=')[-1].split('&')[0]
-    # try:
-        # if addMethod == 'p':
-            # # print('POST method')
-            # url = 'https://' + baseUrl + '/' + shopList[shopIndex] + '/Products?depPid=' + depPid
-            # response = session.post(url, data=getAddToCartData(itemId), headers=headers, timeout=timeoutAddToCart)
-        # else:
-            # print('GET method')
-            # url = 'https://' + baseUrl + '/' + shopList[shopIndex] + '/ShoppingCart.aspx?Department=' + depPid + '&addItem=' + itemId
-            # response = session.get(url, headers=headers, timeout=timeoutAddToCart)
-    # except Exception as ex:
-        # saveLogs('$$$$$$$$$$$$$$ Exception addToCart $$$$$$$$$$$$$')
-        # saveLogs(str(ex))
-        # sleep(0.5)
-        # return
-    # # if 'WebResource.axd' in str(response.content):
-        # # saveLogs('WebResource.axd')
-        # # deptStates = {
-            # # 'viewState': getValue(str(response.content), '__VIEWSTATE', True),
-            # # 'eventValidation': getValue(str(response.content), '__EVENTVALIDATION', True),
-        # # }
-        # # try:
-            # # response = session.post(url, data=getAddToCartData(itemId), headers=headers, timeout=timeoutValue)
-        # # except Exception as ex:
-            # # saveLogs('$$$$$$$$$$$$$$ Exception $$$$$$$$$$$$$')
-            # # saveLogs(str(ex))
-            # # sleep(0.5)
-            # # return
-    # if response.status_code != 200:
-        # saveLogs('Error del servidor al realizar la operación.')
-        # return
-    # if 'Error.aspx' in str(response.content):
-        # saveLogs('Error al añadir!!!')
-        # return
-    # # saveContent(str(response.content), 'addToCart')
-    # getCart(response.content, addMethod == 'p')
-    # if not 'ctl00_cphPage_productsControl_UpdatePanel1' in str(response.content):
-        # saveLogs('Producto agotado!!!')
-        # return
-    # saveLogs('Error desconocido al realizar la operación.')
-
-def addToCart(itemUri, itemId, timeoutAddToCart = 90, id = '1'):
+def addToCart():
     global session, deptStates
-    depPid = itemUri.split('depPid=')[-1].split('&')[0]
-    saveLogs(id + '_addToCart')
     try:
         if addMethod == 'p':
             saveLogs('POST method')
-            saveLogs(str(getAddToCartData()))
-            url = 'https://' + baseUrl + '/' + shopList[shopIndex] + '/Products?depPid=' + depPid
-            response = session.post(url, data=getAddToCartData(), headers=headers, timeout=timeoutAddToCart)
+            url = 'https://' + baseUrl + '/' + shopList[shopIndex] + '/Products?depPid=' + depPidMap.get(shopList[shopIndex], '46095') + '&page=0'
+            postData = getAddToCartData()
+            saveLogs(re.sub("__VIEWSTATE': '[^']*", "__VIEWSTATE': '" + deptStates['viewState'][-10:], str(postData).replace(', ', '\n')))
+            saveLogs(url)
+            response = postAntiScraping(url, data=postData)
         else:
-            url = 'https://' + baseUrl + '/' + shopList[shopIndex] + '/ShoppingCart.aspx?Department=' + depPid + '&addItem=' + itemId
-            response = session.get(url, headers=headers, timeout=timeoutAddToCart, allow_redirects=False)
+            saveLogs('GET method')
+            url = 'https://' + baseUrl + '/' + shopList[shopIndex] + '/ShoppingCart.aspx?Department=' + depPidMap.get(shopList[shopIndex], '46095') + '&addItem=' + itemId
+            response = getAntiScraping(url)
     except Exception as ex:
-        saveLogs(id + '_' + '$$$$$$$$$$$$$$ Exception addToCart $$$$$$$$$$$$$')
-        saveLogs(id + '_' + str(ex))
+        saveLogs('$$$$$$$$$$$$$$ Exception addToCart $$$$$$$$$$$$$')
+        saveLogs(str(ex))
         sleep(0.5)
         return
     
-    # saveLogs(id + '_' + str(response.history))
-    # saveLogs(id + '_' + response.url)
-    saveLogs(id + '_STATUS: ' + str(response.status_code))
-    
-    if response.status_code == 302 and response.headers['location'] == '/' + shopList[shopIndex] + '/Products?depPid=' + depPid:
-        saveLogs(id + '_location: ' + response.headers['location'])
-        try:
-            response = session.get('https://' + baseUrl + response.headers['location'], headers=headers, timeout=timeoutAddToCart, allow_redirects=False)
-        except Exception as ex:
-            saveLogs(id + '_' + '$$$$$$$$$$$$$$ Exception addToCart $$$$$$$$$$$$$')
-            saveLogs(id + '_' + str(ex))
-            sleep(0.5)
-            return
-              
-        saveLogs(id + '_STATUS: ' + str(response.status_code))
-        if response.status_code == 302:
-            saveLogs(id + '_location: ' + response.headers['location'])
-    if response.status_code != 200:
-        saveLogs(id + '_' + 'Error del servidor: ' + str(response.status_code))
-        return
-    if 'Error.aspx' in str(response.content):
-        saveLogs(id + '_' + 'Error al añadir!!!')
-        return
-    # saveContent(str(response.content), 'addToCart')
-    getCart(response.content, addMethod == 'p')
-    if not 'ctl00_cphPage_productsControl_UpdatePanel1' in str(response.content):
-        saveLogs(id + '_' + 'Producto agotado!!!')
-        return
-    saveLogs(id + '_' + 'Error desconocido al realizar la operación.')
+    # saveLogs(str(response.history))
+    # saveLogs(response.url)
+    saveLogs('STATUS: ' + str(response.status_code))
+    if isItRedirect(response.status_code): saveLogs('location: ' + response.headers['location'])
 
 def getAddToCartData(itemId = 'ctl00'):
     return {
@@ -421,8 +377,8 @@ def getAddToCartData(itemId = 'ctl00'):
         # '__EVENTVALIDATION': deptStates['eventValidation'],
         'ctl00$txtSearch': '',
         'ctl00$cphPage$productsControl$TopTools$cbxPageSize': '-1',
-        'ctl00$txtSearch=&ctl00$cphPage$productsControl$TopTools$cbxSortType': '',
-        'ctl00$cphPage$productsControl$rptListProducts$' + itemId + '$' + showMode + '$listTemplate$txbCaptcha': '',
+        'ctl00$cphPage$productsControl$TopTools$cbxSortType': '',
+        'ctl00$cphPage$productsControl$rptListProducts$' + itemId + '$' + showMode + '$txbCaptcha': '',
         # 'ctl00$cphPage$productsControl$TopTools$cbxViewType': 'GridMode',
         'ctl00$cphPage$productsControl$rptListProducts$' + itemId + '$' + showMode + '$txtCount': '1',
         '__ASYNCPOST': 'true',
@@ -649,22 +605,24 @@ def getCart(content, xhr = False, toExit = False):
         if userTag is None: userTag = soup.find(id = 'LoginName1')
         if userTag is None:
             saveLogs('NO ESTÁ AUTENTICADO')
-            os._exit(0)
+            return False
+            # os._exit(0)
         user = userTag.get_text().split('Bienvenido ')[-1]
         # print('user: ' + user)
     tableCart = soup.find(class_ = 'table-cart')
     if tableCart is None:
         saveLogs('Error leyendo el carrito')
-        return
+        return True
     itemsHtml = tableCart.find('tbody').find('tr')
     if not itemsHtml:
         saveLogs('shop: ' + shopList[shopIndex] + ', cart: Cart(' + user + ', carrito vacío)')
         if toExit: os._exit(0)
-        return
+        return True
     aTitle = itemsHtml.find(class_ = 'cart-product-desc').find('a')
     title = aTitle.get_text().strip()
     saveLogs('shop: ' + shopList[shopIndex] + ', cart: Cart(' + user + ', ' + title + ')')
     saveLogs('Tiene un producto en el carrito!!!')
+    # return True
     os._exit(0)
 
 def getValue(content, name, xhr):
