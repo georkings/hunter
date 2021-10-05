@@ -8,13 +8,10 @@ import re
 from datetime import datetime
 from time import sleep
 from bs4 import BeautifulSoup
-# from dbc import new_recaptcha_coordinates as dbc
-from twocaptcha import TwoCaptcha
 
 headers = {
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.70 Safari/537.36'
 }
-solver = TwoCaptcha('6176e0a620e1900dbc847591d9e79fd2')
 baseUrl = 'www.tuenvio.cu'
 stateIn = None
 deptStates = None
@@ -158,19 +155,9 @@ def getCaptcha():
         sleep(0.5)
         return False
     if r.status_code == 200:
-        saveLogs('solving catpcha...')
         with open("captcha_" + username + ".jpg", 'wb') as f:
             f.write(r.content)
-        while True:
-            try:
-                response = solver.normal("captcha_" + username + ".jpg")
-                break
-            except Exception as ex:
-                saveLogs('$$$$$$$$$$$$$$ Exception getCaptcha 2 $$$$$$$$$$$$$')
-                saveLogs(str(ex))
-                sleep(2)
-        saveLogs('Captcha: ' + response['code'])
-        return response['code']
+        return input('Enter the captcha: ')
 
 def logIn(password, captcha):
     global session, stateIn
