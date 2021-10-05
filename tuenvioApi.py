@@ -6,6 +6,7 @@ import asyncio
 import pickle
 import re
 from datetime import datetime
+from threading import Thread
 from time import sleep
 from bs4 import BeautifulSoup
 # from dbc import new_recaptcha_coordinates as dbc
@@ -18,6 +19,10 @@ solver = TwoCaptcha('6176e0a620e1900dbc847591d9e79fd2')
 baseUrl = 'www.tuenvio.cu'
 stateIn = None
 deptStates = None
+getItemsContent = None
+if os.path.isfile('getItems.html'):
+    with open('getItems.html', 'r') as file:
+        getItemsContent = str.encode(file.read())
 timeoutValue = 120
 fatResponse = 300000
 session = requests.Session()
@@ -274,17 +279,22 @@ def getSections(toExit = False):
     saveLogs(output)
     return output
 
+c = 0
 def helper():
-    global deptStates
-    if deptStates is None: getItems()
-    else: addToCart()
+    global deptStates, c
+    if deptStates is None:
+        items = getItems()
+        if items and len(items) > 0:
+            for i in range(5): Thread(target = addToCart).start()
+    elif c < 150 || getItemsContent !is None:
+        addToCart()
+        c += 1
 
 def getItems():
     global session, deptStates, showMode
     showMode = 'listTemplate'
-    if os.path.isfile('getItems.html'):
-        with open('getItems.html', 'r') as file:
-            soupContent = str.encode(file.read())
+    if getItemsContent !is None:
+        soupContent = getItemsContent
     else:
         url = 'https://' + baseUrl + '/' + shopList[shopIndex] + '/Products?depPid=' + depPidMap.get(shopList[shopIndex], '46095')
         saveLogs(url)
@@ -318,7 +328,7 @@ def getItems():
         'eventValidation': getValue(str(soupContent), '__EVENTVALIDATION', False),
     }
 
-    if not os.path.isfile('getItems.html'): saveContent(str(soupContent), 'getItems')
+    if getItemsContent is None: saveContent(str(soupContent), 'getItems')
     
     itemTags = hProductItems.find_all(class_ = 'product-details')
     if len(itemTags) > 0: return getItemsData_new(itemTags)
