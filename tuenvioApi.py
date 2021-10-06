@@ -282,7 +282,7 @@ def getSections(toExit = False):
 
 def helper():
     if itemList is None: getItems()
-    else: os._exit(0)
+    else: addToCart()
 
 def getItems():
     global session, itemList, showMode
@@ -290,7 +290,7 @@ def getItems():
     if getItemsContent is not None:
         soupContent = getItemsContent
     else:
-        url = 'https://' + baseUrl + '/' + shopList[shopIndex] + '/Products?depPid=' + depPidMap.get(shopList[shopIndex], '46095')
+        url = 'https://' + baseUrl + '/' + shopList[shopIndex] + '/Products?depPid=' + depPidMap.get(shopList[shopIndex], '46095') + '&page=0'
         saveLogs(url)
         try:
             response = getAntiScraping(url)
@@ -316,11 +316,6 @@ def getItems():
     if hProductItems is None:
         saveLogs('--- no hay productos ---')
         return False
-
-    deptStates = {
-        'viewState': getValue(str(soupContent), '__VIEWSTATE', False),
-        'eventValidation': getValue(str(soupContent), '__EVENTVALIDATION', False),
-    }
 
     if getItemsContent is None: saveContent(str(soupContent), 'getItems')
     
@@ -373,14 +368,10 @@ def getParticularData(productDetails):
     text = productDetails.find_all('input', {'type' : 'text'})
     for el in text:
         value = el.attrs['value'] if 'value' in el.attrs else ''
-        print('name: ' + el.attrs['name'] + ', value: ' + value)
         output[el.attrs['name']] = value
-    output['__EVENTTARGET'] = productDetails.encode_contents().split('(new WebForm_PostBackOptions(&quot;')[1].split('&quot;')[0]
-    print('event: ' + output['__EVENTTARGET'])
-    output['__EVENTTARGET'] = productDetails.decode_contents().split('(new WebForm_PostBackOptions(&quot;')[1].split('&quot;')[0]
-    print('event: ' + output['__EVENTTARGET'])
+    output['__EVENTTARGET'] = productDetails.decode_contents().split('(new WebForm_PostBackOptions("')[1].split('"')[0]
+    # print('event: ' + output['__EVENTTARGET'])
     output['ctl00$ScriptManager1'] = 'ctl00$ScriptManager1|' + output['__EVENTTARGET']
-    pprint.pprint(output)
     return output
 
 def getGeneralData(soup):
@@ -401,11 +392,11 @@ def addToCart():
     try:
         if addMethod == 'p':
             saveLogs('POST method')
-            url = 'https://' + baseUrl + '/' + shopList[shopIndex] + '/Products?depPid=' + depPidMap.get(shopList[shopIndex], '46095')
-            postData = getAddToCartData()
-            saveLogs(re.sub("__VIEWSTATE': '[^']*", "__VIEWSTATE': '" + deptStates['viewState'][-10:], str(postData).replace(', ', '\n')))
+            url = 'https://' + baseUrl + '/' + shopList[shopIndex] + '/Products?depPid=' + depPidMap.get(shopList[shopIndex], '46095') + '&page=0'
+            postData = itemList[0]['postData']
+            saveLogs(re.sub("__VIEWSTATE': '[^']*", "__VIEWSTATE': '" + postData['__VIEWSTATE'][-10:], str(postData).replace(', ', '\n')))
             saveLogs(url)
-            response = postAntiScraping(url, data=itemList[0]['postData'], timeout=1)
+            response = postAntiScraping(url, data=itemList[0]['postData'], timeout=5)
         else:
             saveLogs('GET method')
             url = 'https://' + baseUrl + '/' + shopList[shopIndex] + '/ShoppingCart.aspx?Department=' + depPidMap.get(shopList[shopIndex], '46095') + '&addItem=' + itemId
@@ -420,25 +411,6 @@ def addToCart():
     # saveLogs(response.url)
     saveLogs('STATUS: ' + str(response.status_code))
     if isItRedirect(response.status_code): saveLogs('location: ' + response.headers['location'])
-
-def getAddToCartData(itemId = 'ctl00'):
-    return {
-        'ctl00$ScriptManager1': 'ctl00$ScriptManager1|ctl00$cphPage$productsControl$rptListProducts$' + itemId + '$' + showMode + '$btnCart',
-        # 'ctl00$ScriptManager1': 'ctl00$cphPage$productsControl$UpdatePanel1|ctl00$cphPage$productsControl$rptListProducts$' + itemId + '$' + showMode + '$btnCart',
-        '__EVENTTARGET': 'ctl00$cphPage$productsControl$rptListProducts$' + itemId + '$' + showMode + '$btnCart',
-        '__VIEWSTATE': deptStates['viewState'],
-        # '__VIEWSTATE': '',
-        # '__EVENTVALIDATION': deptStates['eventValidation'],
-        # 'ctl00$txtSearch': '',
-        'ctl00$cphPage$productsControl$TopTools$cbxPageSize': '-1',
-        'ctl00$cphPage$productsControl$TopTools$cbxSortType': '',
-        # 'ctl00$cphPage$productsControl$rptListProducts$' + itemId + '$' + showMode + '$txbCaptcha': '',
-        # 'ctl00$cphPage$productsControl$TopTools$cbxViewType': 'GridMode',
-        'ctl00$cphPage$productsControl$rptListProducts$' + itemId + '$' + showMode + '$txtCount': '1',
-        '__ASYNCPOST': 'true',
-        'PageLoadedHiddenTxtBox': 'Set',
-        **baseData
-    }
     
 def getItemsData():
     return {

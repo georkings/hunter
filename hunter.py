@@ -23,19 +23,19 @@ tuenvioApi.saveLogs('*** Welcome! ***')
 tuenvioApi.saveLogs('sleep Time: ' + str(sleepTime) + 'ms')
 
 # logIn
-# while True:
-    # while True:
-        # captcha = tuenvioApi.getCaptcha()
-        # if captcha: break
-        # sleep(1)
-    # if captcha == 'loggedIn': break
-    # if tuenvioApi.logIn(password, captcha): break
-    # sleep(1)
+while True:
+    while True:
+        captcha = tuenvioApi.getCaptcha()
+        if captcha: break
+        sleep(1)
+    if captcha == 'loggedIn': break
+    if tuenvioApi.logIn(password, captcha): break
+    sleep(1)
 
 c = 0
 while True:
     Thread(target = tuenvioApi.helper).start()
-    if tuenvioApi.deptStates is None: sleep(1)
+    if tuenvioApi.itemList is None: sleep(1)
     else: sleep(sleepTime / 1000)
     c += 1
     # if c % 30 == 0: tuenvioApi.getSections()
