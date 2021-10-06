@@ -5,6 +5,7 @@ import sys
 import asyncio
 import pickle
 import re
+import pprint
 from datetime import datetime
 from threading import Thread
 from time import sleep
@@ -18,7 +19,7 @@ headers = {
 solver = TwoCaptcha('6176e0a620e1900dbc847591d9e79fd2')
 baseUrl = 'www.tuenvio.cu'
 stateIn = None
-deptStates = None
+itemList = None
 getItemsContent = None
 if os.path.isfile('getItems.html'):
     with open('getItems.html', 'r') as file:
@@ -280,12 +281,11 @@ def getSections(toExit = False):
     return output
 
 def helper():
-    global deptStates
-    if deptStates is None: getItems()
-    else: addToCart()
+    if itemList is None: getItems()
+    else: os._exit(0)
 
 def getItems():
-    global session, deptStates, showMode
+    global session, itemList, showMode
     showMode = 'listTemplate'
     if getItemsContent is not None:
         soupContent = getItemsContent
@@ -325,8 +325,8 @@ def getItems():
     if getItemsContent is None: saveContent(str(soupContent), 'getItems')
     
     itemTags = hProductItems.find_all(class_ = 'product-details')
-    if len(itemTags) > 0: return getItemsData_new(itemTags)
-    return getItemsData_old(hProductItems.find_all('li', recursive=False))
+    if len(itemTags) > 0: itemList = getItemsData_new(itemTags, soup)
+    else: itemList = getItemsData_old(hProductItems.find_all('li', recursive=False))
 
 def getItemsData_old(itemTags):
     saveLogs('Total de productos (old): ' + str(len(itemTags)))
@@ -351,19 +351,53 @@ def getItemsData_old(itemTags):
         productList.append(item)
     return productList
 
-def getItemsData_new(itemTags):
+def getItemsData_new(itemTags, soup):
+    global itemPostData
     saveLogs('Total de productos (new): ' + str(len(itemTags)))
     productList = []
     for el in itemTags:
         item = {}
+        postData = {}
         item['itemTitle'] = el.find(class_ = 'product-title').get_text().strip()
         item['itemPrice'] = el.find(class_ = 'product-price').get_text().strip()
         saveLogs('- ' + item['itemTitle'] + ' (' + item['itemPrice'] + ')')
+        item['postData'] = {
+            **getParticularData(el),
+            **getGeneralData(soup)
+        }
         productList.append(item)
     return productList
 
+def getParticularData(productDetails):
+    output = {}
+    text = productDetails.find_all('input', {'type' : 'text'})
+    for el in text:
+        value = el.attrs['value'] if 'value' in el.attrs else ''
+        print('name: ' + el.attrs['name'] + ', value: ' + value)
+        output[el.attrs['name']] = value
+    output['__EVENTTARGET'] = productDetails.encode_contents().split('(new WebForm_PostBackOptions(&quot;')[1].split('&quot;')[0]
+    print('event: ' + output['__EVENTTARGET'])
+    output['__EVENTTARGET'] = productDetails.decode_contents().split('(new WebForm_PostBackOptions(&quot;')[1].split('&quot;')[0]
+    print('event: ' + output['__EVENTTARGET'])
+    output['ctl00$ScriptManager1'] = 'ctl00$ScriptManager1|' + output['__EVENTTARGET']
+    pprint.pprint(output)
+    return output
+
+def getGeneralData(soup):
+    output = {}
+    hidden = soup.find_all('input', {'type' : 'hidden'})
+    for el in hidden:
+        value = el.attrs['value'] if 'value' in el.attrs else ''
+        output[el.attrs['name']] = value
+    output['PageLoadedHiddenTxtBox'] = 'Set';
+    output['__ASYNCPOST'] = 'true';
+    select = soup.find_all('select')
+    for el in select:
+        output[el.attrs['name']] = el.find('option', {'selected': 'selected'}).attrs['value']
+    return output
+
 def addToCart():
-    global session, deptStates
+    global session
     try:
         if addMethod == 'p':
             saveLogs('POST method')
@@ -371,7 +405,7 @@ def addToCart():
             postData = getAddToCartData()
             saveLogs(re.sub("__VIEWSTATE': '[^']*", "__VIEWSTATE': '" + deptStates['viewState'][-10:], str(postData).replace(', ', '\n')))
             saveLogs(url)
-            response = postAntiScraping(url, data=postData, timeout=1)
+            response = postAntiScraping(url, data=itemList[0]['postData'], timeout=1)
         else:
             saveLogs('GET method')
             url = 'https://' + baseUrl + '/' + shopList[shopIndex] + '/ShoppingCart.aspx?Department=' + depPidMap.get(shopList[shopIndex], '46095') + '&addItem=' + itemId
