@@ -287,8 +287,12 @@ def helper():
 def getItems():
     global session, itemList, showMode
     showMode = 'listTemplate'
-    if getItemsContent is not None:
-        soupContent = getItemsContent
+    # if getItemsContent is not None:
+    #     soupContent = getItemsContent
+    if os.path.isfile('getItems.html'):
+        with open('getItems.html', 'r') as file:
+            getItemsContent = str.encode(file.read())
+            soupContent = getItemsContent
     else:
         url = 'https://' + baseUrl + '/' + shopList[shopIndex] + '/Products?depPid=' + depPidMap.get(shopList[shopIndex], '46095') + '&page=0'
         saveLogs(url)
@@ -317,7 +321,11 @@ def getItems():
         saveLogs('--- no hay productos ---')
         return False
 
-    if getItemsContent is None: saveContent(str(soupContent), 'getItems')
+    if getItemsContent is None:
+        file = codecs.open('getItems.html', 'w', encoding='utf-8', errors='ignore')
+        file.write(codecs.escape_decode(bytes(str(soupContent), "utf-8"))[0].decode("utf-8"))
+        file.close()
+        saveContent(str(soupContent), 'getItems')
     
     itemTags = hProductItems.find_all(class_ = 'product-details')
     if len(itemTags) > 0: itemList = getItemsData_new(itemTags, soup)
