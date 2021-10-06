@@ -329,7 +329,7 @@ def getItems():
     return getItemsData_old(hProductItems.find_all('li', recursive=False))
 
 def getItemsData_old(itemTags):
-    saveLogs('Total de productos: ' + str(len(itemTags)))
+    saveLogs('Total de productos (old): ' + str(len(itemTags)))
     productList = []
     for el in itemTags:
         item = {}
@@ -352,7 +352,7 @@ def getItemsData_old(itemTags):
     return productList
 
 def getItemsData_new(itemTags):
-    saveLogs('Total de productos: ' + str(len(itemTags)))
+    saveLogs('Total de productos (new): ' + str(len(itemTags)))
     productList = []
     for el in itemTags:
         item = {}
