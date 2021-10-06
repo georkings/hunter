@@ -11,6 +11,7 @@ if len(sys.argv) != 3:
     sys.exit(0)
 tuenvioApi.shopIndex = tuenvioApi.shopList.index(sys.argv[1])
 tuenvioApi.username = sys.argv[2]
+sleepTime = int(input('Tiempo entre cada intento de montar(ms): '))
 
 if os.path.isdir('users') and os.path.isfile('users/' + tuenvioApi.username):
     file = open('users/' + tuenvioApi.username, 'r')
@@ -19,6 +20,7 @@ if os.path.isdir('users') and os.path.isfile('users/' + tuenvioApi.username):
 else: password = "Lionel*2017"
 
 tuenvioApi.saveLogs('*** Welcome! ***')
+tuenvioApi.saveLogs('sleep Time: ' + str(sleepTime) + 'ms')
 
 # logIn
 while True:
@@ -34,7 +36,7 @@ c = 0
 while True:
     Thread(target = tuenvioApi.helper).start()
     if tuenvioApi.deptStates is None: sleep(1)
-    else: sleep(0.2)
+    else: sleep(sleepTime / 1000)
     c += 1
     # if c % 30 == 0: tuenvioApi.getSections()
-    if c % 100 == 0: Thread(target = tuenvioApi.getSections).start()
+    if c % 60 == 0: Thread(target = tuenvioApi.getSections).start()

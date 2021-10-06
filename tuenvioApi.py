@@ -279,16 +279,10 @@ def getSections(toExit = False):
     saveLogs(output)
     return output
 
-c = 0
 def helper():
-    global deptStates, c
-    if deptStates is None:
-        items = getItems()
-        if items and len(items) > 0:
-            for i in range(5): Thread(target = addToCart).start()
-    elif c < 150 or getItemsContent is not None:
-        addToCart()
-        c += 1
+    global deptStates
+    if deptStates is None: getItems()
+    else: addToCart()
 
 def getItems():
     global session, deptStates, showMode
@@ -373,7 +367,7 @@ def addToCart():
     try:
         if addMethod == 'p':
             saveLogs('POST method')
-            url = 'https://' + baseUrl + '/' + shopList[shopIndex] + '/Products?depPid=' + depPidMap.get(shopList[shopIndex], '46095') + '&page=0'
+            url = 'https://' + baseUrl + '/' + shopList[shopIndex] + '/Products?depPid=' + depPidMap.get(shopList[shopIndex], '46095')
             postData = getAddToCartData()
             saveLogs(re.sub("__VIEWSTATE': '[^']*", "__VIEWSTATE': '" + deptStates['viewState'][-10:], str(postData).replace(', ', '\n')))
             saveLogs(url)
@@ -401,10 +395,10 @@ def getAddToCartData(itemId = 'ctl00'):
         '__VIEWSTATE': deptStates['viewState'],
         # '__VIEWSTATE': '',
         # '__EVENTVALIDATION': deptStates['eventValidation'],
-        'ctl00$txtSearch': '',
+        # 'ctl00$txtSearch': '',
         'ctl00$cphPage$productsControl$TopTools$cbxPageSize': '-1',
         'ctl00$cphPage$productsControl$TopTools$cbxSortType': '',
-        'ctl00$cphPage$productsControl$rptListProducts$' + itemId + '$' + showMode + '$txbCaptcha': '',
+        # 'ctl00$cphPage$productsControl$rptListProducts$' + itemId + '$' + showMode + '$txbCaptcha': '',
         # 'ctl00$cphPage$productsControl$TopTools$cbxViewType': 'GridMode',
         'ctl00$cphPage$productsControl$rptListProducts$' + itemId + '$' + showMode + '$txtCount': '1',
         '__ASYNCPOST': 'true',
