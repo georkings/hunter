@@ -304,6 +304,7 @@ def getItems():
             sleep(0.5)
             return False
         saveLogs('getItems STATUS: ' + str(response.status_code))
+        if isItRedirect(response.status_code): saveLogs('location: ' + response.headers['location'])
         if response.status_code != 200:
             if (len(response.content) > fatResponse): saveLogs('Alto Consumo de Megas!!!')
             return False
