@@ -27,7 +27,7 @@ while True:
     while True:
         captcha = tuenvioApi.getCaptcha()
         if captcha: break
-        sleep(2)
+        sleep(1)
     if captcha == 'loggedIn': break
     if tuenvioApi.logIn(password, captcha): break
     sleep(1)
@@ -35,8 +35,8 @@ while True:
 c = 0
 while True:
     Thread(target = tuenvioApi.helper).start()
-    if tuenvioApi.itemList is None: sleep(3)
-    else: sleep(2)
+    if tuenvioApi.itemList is None: sleep(1)
+    else: sleep(sleepTime / 1000)
     c += 1
     # if c % 30 == 0: tuenvioApi.getSections()
     if c % 60 == 0: Thread(target = tuenvioApi.getSections).start()

@@ -289,8 +289,8 @@ def getItems():
     showMode = 'listTemplate'
     # if getItemsContent is not None:
     #     soupContent = getItemsContent
-    if os.path.isfile('getItems.html'):
-        with open('getItems.html', 'r') as file:
+    if os.path.isfile('getItems_' + shopList[shopIndex] + '.html'):
+        with open('getItems_' + shopList[shopIndex] + '.html', 'r') as file:
             getItemsContent = str.encode(file.read())
             soupContent = getItemsContent
     else:
@@ -322,7 +322,7 @@ def getItems():
         return False
 
     if getItemsContent is None:
-        file = codecs.open('getItems.html', 'w', encoding='utf-8', errors='ignore')
+        file = codecs.open('getItems_' + shopList[shopIndex] + '.html', 'w', encoding='utf-8', errors='ignore')
         file.write(codecs.escape_decode(bytes(str(soupContent), "utf-8"))[0].decode("utf-8"))
         file.close()
         saveContent(str(soupContent), 'getItems')
